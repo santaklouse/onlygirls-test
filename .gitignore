@@ -24,3 +24,6 @@ Homestead.json
 .DS_Store
 
 configs/db-init/0-of_users.table.dump.sql
+
+.idea/
+.editorconfig
