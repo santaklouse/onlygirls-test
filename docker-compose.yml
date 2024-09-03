@@ -1,0 +1,82 @@
+services:
+  app:
+    build:
+      context: ./app/
+      dockerfile: Dockerfile
+    container_name: onlygirls-test-app
+    restart: unless-stopped
+    working_dir: /var/www
+    environment:
+      - APP_NAME=${APP_NAME}
+      - APP_ENV=${APP_ENV}
+      - APP_KEY=${APP_KEY}
+      - APP_DEBUG=${APP_DEBUG}
+      - APP_URL=${APP_URL}
+      - DB_CONNECTION=${DB_CONNECTION}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./app:/var/www
+    ports:
+      - "5173:5173"
+      - "8080:8080"
+    depends_on:
+      - db
+      - db-api
+    networks:
+      - www
+    command: >
+      sh -c "npm install && npm run dev --host & php artisan serve --host=0.0.0.0 --port=8080"
+
+  db:
+    image: ${DOCKER_DB_IMAGE}
+    container_name: onlygirls-test-db
+    restart: always
+    command: [
+      '--character-set-server=utf8mb4',
+      '--collation-server=utf8mb4_unicode_ci',
+    ]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOTPASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      LANG: C.UTF_8
+    ports:
+      - "3306:3306"
+    networks:
+      - www
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./configs/db-init:/docker-entrypoint-initdb.d
+
+  db-api:
+    build:
+      context: ./db-api
+      dockerfile: Dockerfile
+    container_name: onlygirls-test-db-api
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - www
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./db-api:/usr/src/app
+
+volumes:
+  db_data:
+
+networks:
+  www:
+  server:

@@ -21,3 +21,6 @@ Homestead.yaml
 Homestead.json
 /.vagrant
 .phpunit.result.cache
+.DS_Store
+
+configs/db-init/0-of_users.table.dump.sql
