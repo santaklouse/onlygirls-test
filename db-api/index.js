@@ -40,16 +40,25 @@ app.get('/models', (req, res) => {
      */
 
     const sql = `
-        SELECT models.*, likes.count as likes
-        FROM of_users models
-         LEFT JOIN (
-            SELECT model_id as id,
-                   count(\`like\`) as count
-            FROM model_swipes
-            GROUP BY model_id
-            HAVING count > 1000
-        ) likes ON models.id = likes.id
-        ORDER BY RAND() LIMIT 10
+        WITH UserLikes AS (
+            SELECT distinct models.id,
+               ROW_NUMBER() OVER (ORDER BY RAND()) AS rn
+            FROM of_users models
+            RIGHT JOIN (SELECT model_id as id, count(\`like\`) as count
+                        FROM model_swipes
+                        GROUP BY model_id
+                        HAVING count > 1000) likes ON models.id = likes.id
+        ),
+        TotalRand10 as (
+            SELECT id, rn FROM UserLikes
+            UNION ALL
+            SELECT id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn
+            FROM of_users
+            WHERE id NOT IN (SELECT id FROM UserLikes)
+            ORDER BY rn
+            LIMIT 10
+        )
+        SELECT * from of_users where id in (SELECT id from TotalRand10)
     `;
 
     db.query(sql, (err, result) => {
