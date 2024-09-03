@@ -15,5 +15,6 @@ git clone https://github.com/santaklouse/onlygirls-test.git
 6. run `docker-compose up -d`
 7. open http://localhost:8080/ in browser
 
-
-[![Try in PWD](https://raw.githubusercontent.com/play-with-docker/stacks/master/assets/images/button.png)](https://labs.play-with-docker.com/?stack=https://raw.githubusercontent.com/santaklouse/onlygirls-test/main/docker-compose.yml)
+[//]: # (TODO: add dummy data for db in order to allow it deploy on PwD service)
+[//]: # (Try it on Play with Docker playground)
+[//]: # ([![Try in PWD]&#40;https://raw.githubusercontent.com/play-with-docker/stacks/master/assets/images/button.png&#41;]&#40;https://labs.play-with-docker.com/?stack=https://raw.githubusercontent.com/santaklouse/onlygirls-test/main/docker-compose.yml&#41;)
