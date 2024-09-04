@@ -10,8 +10,6 @@ RUN npm run build
 
 FROM php:8.2-fpm-alpine
 
-WORKDIR /var/www
-
 RUN apk add --no-cache \
     build-base \
     libpng-dev \
@@ -23,24 +21,33 @@ RUN apk add --no-cache \
     zip \
     unzip \
     git \
+    bash  \
+    sqlite \
+    npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo pdo_mysql mbstring exif pcntl bcmath gd
+    && docker-php-ext-install -j$(nproc) pdo pdo_mysql mbstring exif pcntl bcmath gd \
+    && npm install -g npm@latest
 
-RUN apk add --update bash  sqlite supervisor npm && npm install -g npm@latest
+COPY --from=builder /build-stage/node_modules /var/www/node_modules
+COPY --from=builder /build-stage/public/ /var/www/public
 
-# Копируем файлы приложения
-COPY . .
+ENV COMPOSER_HOME /composer
+ENV PATH ./vendor/bin:/composer/vendor/bin:$PATH
+ENV COMPOSER_ALLOW_SUPERUSER 1
+RUN curl -s https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin/ --filename=composer
 
-# Устанавливаем Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+WORKDIR /var/www
 
-COPY --from=builder /build-stage/node_modules ./node_modules
-COPY --from=builder /build-stage/public/ ./public
+COPY . /var/www
+COPY --chown=www-data:www-data . /var/www
 
-# Устанавливаем зависимости проекта через Composer
-RUN composer install --no-dev --optimize-autoloader
+#USER www-data
+
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+
+RUN composer install
+
+CMD npm install && npm run dev --host & composer install ; php artisan serve --host=0.0.0.0 --port=8080
 
 EXPOSE 5173
 EXPOSE 8080
-
-CMD php artisan serve --host=0.0.0.0 --port=8080
