@@ -1,35 +1,4 @@
 services:
-  app:
-    build:
-      context: ./app/
-      dockerfile: Dockerfile
-    container_name: onlygirls-test-app
-    restart: unless-stopped
-    working_dir: /var/www
-    environment:
-      - APP_NAME=${APP_NAME}
-      - APP_ENV=${APP_ENV}
-      - APP_KEY=${APP_KEY}
-      - APP_DEBUG=${APP_DEBUG}
-      - APP_URL=${APP_URL}
-      - DB_CONNECTION=${DB_CONNECTION}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - ./app:/var/www
-    ports:
-      - "5173:5173"
-      - "8080:8080"
-    depends_on:
-      - db
-      - db-api
-    networks:
-      - www
-    command: >
-      sh -c "npm install && npm run dev --host & php artisan serve --host=0.0.0.0 --port=8080"
 
   db:
     image: ${DOCKER_DB_IMAGE}
@@ -45,13 +14,36 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       LANG: C.UTF_8
-    ports:
-      - "3306:3306"
     networks:
       - www
     volumes:
       - db_data:/var/lib/mysql
       - ./configs/db-init:/docker-entrypoint-initdb.d
+
+  app:
+    build:
+      context: ./app/
+      dockerfile: Dockerfile
+    container_name: onlygirls-test-app
+    restart: unless-stopped
+    working_dir: /var/www
+    env_file:
+      - path: ./app/.env
+        required: true
+      - path: ./.env
+        required: false
+    volumes:
+      - ./app:/var/www
+    ports:
+      - "5173:5173"
+      - "8080:8080"
+    depends_on:
+      - db
+      - db-api
+    networks:
+      - www
+    command: >
+      sh -c "npm install && npm run dev --host & php artisan serve --host=0.0.0.0 --port=8080"
 
   db-api:
     build:
@@ -63,14 +55,9 @@ services:
       - db
     networks:
       - www
-    ports:
-      - "3000:3000"
-    environment:
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+    env_file:
+      - path: ./.env
+        required: true
     volumes:
       - ./db-api:/usr/src/app
 
