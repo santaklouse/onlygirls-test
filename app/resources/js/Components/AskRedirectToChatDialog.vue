@@ -1,11 +1,11 @@
 <template>
-    <v-dialog v-model="model" max-width="500px">
+    <v-dialog v-model="model" max-width="500px" :fullscreen="$vuetify.display.mobile">
         <v-card
             prepend-icon="mdi-call-split"
             title="Do you want to chat with her?"
             :text="`Want to talk to her? No problem, just click the button below to redirect to \`${data?.username}\` profile on OnlyFans site.`"
         >
-            <template v-slot:actions>
+            <template #actions>
                 <v-spacer></v-spacer>
                 <v-btn @click.stop="dismiss">Disagree</v-btn>
                 <v-btn @click.stop="agreed" color="primary">Agree</v-btn>

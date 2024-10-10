@@ -1,0 +1,40 @@
+(worker) {
+	worker "{$APP_PUBLIC_PATH}/frankenphp-worker.php" {$CADDY_SERVER_WORKER_COUNT}
+}
+
+{
+	http_port 80
+	https_port 443
+	auto_https disable_redirects
+
+	admin localhost:{$CADDY_SERVER_ADMIN_PORT}
+
+	frankenphp
+}
+
+{$CADDY_SERVER_SERVER_NAME} {
+	log {
+		level {$CADDY_SERVER_LOG_LEVEL}
+
+		# Redact the authorization query parameter that can be set by Mercure...
+		format filter {
+			wrap {$CADDY_SERVER_LOGGER}
+			fields {
+				uri query {
+					replace authorization REDACTED
+				}
+			}
+		}
+	}
+
+	route {
+		root * "{$APP_PUBLIC_PATH}"
+		encode zstd br gzip
+
+		php_server {
+			index index.php
+			# Required for the public/storage/ directory...
+			resolve_root_symlink
+		}
+	}
+}

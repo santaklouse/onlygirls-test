@@ -1,154 +1,149 @@
 <template>
-    <li v-if="isFirst()" :data-index="index">
-        <v-container class="app-container">
-            <v-main class="card-container">
-                <v-card class="card">
-                    <v-img
-                        :aspect-ratio="1"
-                        cover
-                        :src="item.header_thumbs.w480"
-                        alt="Profile Image"
-                        class="profile-image"
-                    >
-                        <template v-slot:placeholder>
-                            <div class="d-flex align-center justify-center fill-height">
-                                <v-progress-circular
-                                    color="grey-lighten-4"
-                                    indeterminate
-                                ></v-progress-circular>
-                            </div>
+    <v-card class="profile-card rounded rounded-lg elevation-23" :class="{'profile-card--expanded': readMore}">
+        <v-img
+            class="img-wrapper rounded rounded-lg align-end"
+            :aspect-ratio="9/16"
+            :src="item.header"
+            :alt="`${item.name}'s profile header image`"
+            cover
+            min-height="350px"
+            width="100%"
+            height="100%"
+            gradient="to bottom, rgba(0,0,0,.1), rgba(0,0,0,.5)"
+            :loadstart="loading=true"
+            @load="loading=false"
+        >
+            <template #sources>
+                <source media="(max-width: 759px)" :srcset="item.header_thumbs.w480">
+                <source media="(min-width: 760px)" :srcset="item.header_thumbs.w760">
+                <source :media="`(min-width: ${item.header_size.width}px)`" :srcset="item.header">
+            </template>
+            <template #placeholder>
+                <div class="d-flex align-center justify-center fill-height">
+                    <v-progress-circular
+                        color="grey-lighten-4"
+                        indeterminate
+                    ></v-progress-circular>
+                </div>
+            </template>
+            <template #error>
+                <v-img
+                    :aspect-ratio="9/16"
+                    :src="item.avatar_thumbs?.c144"
+                    :alt="`${item.name}'s profile avatar image`"
+                    cover
+                ></v-img>
+            </template>
+            <div class="pb-5" :class="{'overflow-y-auto': readMore}">
+                <v-card-actions class="flex-column gap-0">
+                    <v-list-item class="w-100">
+                        <template v-slot:prepend>
+                            <v-avatar :image="item.avatar_thumbs?.c144" size="64">
+                                <v-img
+                                    v-if="item.avatar_thumbs?.c144"
+                                    alt="Avatar"
+                                    :src="item.avatar_thumbs?.c144"
+                                >
+                                    <template #error>
+                                        <v-icon icon="mdi-account-circle" size="64"></v-icon>
+                                    </template>
+                                </v-img>
+                                <v-icon
+                                    v-else
+                                    icon="mdi-account-circle"
+                                    size="64"
+                                ></v-icon>
+                            </v-avatar>
                         </template>
-                        <template v-slot:error>
-                            <v-img
-                                class="mx-auto"
-                                :aspect-ratio="1"
-                                cover
-                                :src="item.header_thumbs.w760"
-                            ></v-img>
-                        </template>
-                    </v-img>
-                    <v-card-actions class="actions pb-0">
-                        <div class="wrapper">
-                            <v-btn
-                                variant="flat"
-                                class="ma-2"
-                                color="red-lighten-2"
-                                icon="mdi-thumb-down"
-                                size="x-large"
-                                @click="decide('nope')"
-                            ></v-btn>
-                            <v-btn
-                                variant="flat"
-                                class="ma-2"
-                                color="green-lighten-2"
-                                icon="mdi-heart"
-                                size="x-large"
-                                @click="decide('like')"
-                            ></v-btn>
-                        </div>
-                    </v-card-actions>
-                    <v-card-title class="pb-0"><h5 class="name">{{ item.name }}</h5></v-card-title>
-                    <v-card-subtitle class="card-info pt-0 pb-0">
-                        <a target="_blank" :href="`https://onlygirls.com/profile/${item.username}`" class="username">@{{ item.username }}</a>
-                        <div class="location">{{item.location}}</div>
-                    </v-card-subtitle>
-                    <v-card-text class="about pt-1">
+                        <v-list-item-title><h5 class="text-white">{{item.name}}</h5></v-list-item-title>
+                        <v-list-item-subtitle>
+                            <a target="_blank" :href="`https://onlyfans.com/profile/${item.username}`" class="username">@{{ item.username }}</a>
+                        </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item class="w-100" v-if="item.location?.length || item.raw_about?.length">
+                        <v-btn
+                            rounded="xl"
+                            density="comfortable"
+                            text="More"
+                            size="small"
+                            elevation="3"
+                            @click="readMore = !readMore && goTo($refs.about.$el)"
+                        ></v-btn>
+                    </v-list-item>
+
+                </v-card-actions>
+                <v-card-text v-show="!!readMore" class="about pt-1" ref="about">
+                    <div v-if="item.location?.length" class="location">
+                        <h6>Location:&nbsp;</h6>
+                        <span>{{item.location}}</span>
+                    </div>
+                    <div v-if="item.raw_about?.length" class="about pb-3 h-auto">
                         <h6>About Me</h6>
                         <span>{{item.raw_about}}</span>
-                    </v-card-text>
-                </v-card>
-            </v-main>
-        </v-container>
-    </li>
-
+                    </div>
+                </v-card-text>
+            </div>
+        </v-img>
+    </v-card>
 </template>
 
 <script>
+import {useGoTo} from "vuetify";
+
 export default {
+
     name: 'TinderCard',
-    emits: ['action'],
     props: {
         item: Object,
-        models: Array,
-        index: {
-            type: Number,
-            required: true
-        },
     },
     data: () => ({
-        list: [],
+        readMore: false,
+        loading: true
     }),
-    created() {
-        this.list = this.models.slice(0);
+    setup () {
+        const goTo = useGoTo()
+        return { goTo }
     },
-    methods: {
-        isFirst() {
-            return !this.index;
-        },
-        decide(action) {
-            const i = this.list.indexOf(this.item)
-            if (i > -1) {
-                this.list.splice(i, 1)
-            }
-            this.$emit('action', action, this.item);
+    created() {
+        // avatar_thumbs
+        if (!this.item.avatar_thumbs?.c144) {
+            this.item.avatar_thumbs = JSON.parse(this.item.avatar_thumbs);
         }
     }
-
 };
 </script>
 
-<style>
-.app-container {
-    max-width: 375px;
-    height: 100vh;
-    background-color: #fff;
-    border-radius: 20px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
+<style lang="scss">
 
-.card-container {
-    flex: 1;
-    display: flex;
-    justify-content: flex-start;
-    align-items: stretch;
-    flex-direction: row;
-}
+.profile-card {
+    height: 100%;
+    max-height: 80dvh;
 
-.app-container, .card-container {
-    padding: 0;
-}
+    margin-top: 28px;
 
-.card {
-    width: 100%;
-    max-width: 100%;
-    border-radius: 20px;
-}
+    &:after {
+         content: "";
+         position: absolute;
+         top: 0;
+         left: 0;
+         width: 100%;
+         height: calc(100% - 100px);
+         max-height: 80vh;
+         background: rgba(0, 0, 0, 0.6);
+         opacity: 0;
+         transition: opacity 0.3s ease-in-out;
+     }
 
-.name {
-    white-space: nowrap;
-}
+    &--expanded:after {
+        height: calc(100% - 200px);
+    }
 
-.about {
-    height: 10vh;
-    text-overflow: ellipsis;
-}
-
-.profile-image {
-    border-top-left-radius: 20px;
-    border-top-right-radius: 20px;
-
-}
-
-.profile-image img {
-    transition: transform .5s ease;
-}
-
-.profile-image:hover img {
-    transform: scale(1.2);
+    picture.v-img__picture {
+        width: 100%;
+        max-height: 80vh;
+        height: 100%;
+        max-width: 100vw;
+    }
 }
 
 .card-info {
@@ -164,48 +159,29 @@ v-card-subtitle {
 }
 
 .name {
+    white-space: nowrap;
     font-size: 24px;
     font-weight: bold;
 }
 
+.about, .location {
+    h6 {
+        color: #fff;
+    }
+}
+
+.about {
+    height: 10vh;
+    text-overflow: ellipsis;
+}
+
 .location {
     font-size: 18px;
-    color: #777;
     margin-top: 5px;
-}
 
-v-card-actions {
-    display: flex;
-    justify-content: space-around;
-    padding: 15px;
-}
-
-.wrapper {
-    display: flex;
-    width: 100%;
-    position: relative;
-    background: #fff;
-    background: linear-gradient(0deg, rgba(255, 255, 255, 1) 25%, rgba(255, 255, 255, 0) 100%);
-    height: 100%;
-    justify-content: space-around;
-}
-
-.actions {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0px;
-    margin: auto;
-    height: 100px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-around;
-    min-width: 300px;
-    max-width: 355px;
-}
-
-.actions v-btn {
-    opacity: 1;
+    h6 {
+        display: inline-block;
+    }
 }
 
 </style>

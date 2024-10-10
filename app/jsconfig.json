@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "ziggy-js/*": ["vendor/tightenco/ziggy"],
+            "~bootstrap/*": ["node_modules/bootstrap"],
+            "@components/*": ["resources/js/Components/*"],
+            "@pages/*": ["resources/js/Pages/*"],
+            "@layouts/*": ["resources/js/Layouts/*"]
+        }
+    },
+    "exclude": ["node_modules", "public"]
+}

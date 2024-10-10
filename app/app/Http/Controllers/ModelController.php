@@ -4,28 +4,57 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Inertia\Inertia;
+use Inertia\Controller;
+use Inertia\Response;
 
 class ModelController extends Controller
 {
+    private ?string $apiUrl;
 
-    public function index()
+    public function __construct()
     {
-        $response = Http::get('http://onlygirls-test-db-api:3000/models');
-        $models = $response->json();
+        $this->apiUrl = config('app.api_url');
+    }
 
-        return Inertia::render('Models', [
-            'models' => $models,
+    /**
+     * @param Request $request
+     * @param string|null $modelId
+     * @return Response
+     */
+    public function index(Request $request, string $modelId = NULL): Response
+    {
+        $sessionId = $request->session()->getId();
+
+        $modelsApiOptions = [
+            'session_id' => $sessionId,
+            'include_model_id' => $modelId
+        ];
+
+        return inertia('Models', [
+            'models' => fn () => Http::get("{$this->apiUrl}/models", $modelsApiOptions)->json(),
+            'modelId' => $modelId
         ]);
     }
 
-    public function swipe(Request $request)
+    /**
+     * @param Request $request
+     * @return void
+     */
+    public function grade(Request $request): void
     {
-        Http::post('http://onlygirls-test-db-api:3000/swipe', [
-            'model_id' => $request->input('model_id'),
-            'like' => $request->input('like'),
+        $sessionId = $request->session()->getId();
+        $type = $request->input('type');
+        $modelId = $request->input('model_id');
+
+        if (!$modelId) {
+            return;
+        }
+
+        Http::put("{$this->apiUrl}/models/grade", [
+            'model_id' => $modelId,
+            'type' => $type,
             'ip' => $request->ip(),
-            'date' => now()->toDateTimeString(),
+            'session_id' => $sessionId
         ]);
     }
 }

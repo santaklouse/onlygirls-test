@@ -1,0 +1,3 @@
+map $host $app_domain_name {
+  default "$DOCKER_APP_HOSTNAME";
+}
