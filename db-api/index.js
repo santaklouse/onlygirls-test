@@ -13,7 +13,8 @@ const {
     DB_DATABASE,
     REDIS_HOST,
     REDIS_PORT,
-    PORT: port = 3000
+    PORT: port = 3000,
+    REDIS_CACHE
 } = process.env;
 
 const config = {
@@ -23,7 +24,8 @@ const config = {
     DB_DATABASE,
     REDIS_HOST,
     REDIS_PORT,
-    port
+    port,
+    REDIS_CACHE
 };
 
 logger.info('Starting server...');

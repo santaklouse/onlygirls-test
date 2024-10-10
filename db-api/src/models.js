@@ -38,6 +38,8 @@ export class Models {
         return this.redisConnection.client;
     }
 
+    useRedisCache = false;
+
     config = {};
     /**
      * @type {DatabaseConnection}
@@ -54,8 +56,9 @@ export class Models {
         return this._dbClient;
     }
 
-    constructor({DB_HOST, DB_USERNAME, DB_PASSWORD, DB_DATABASE, REDIS_HOST, REDIS_PORT}) {
+    constructor({DB_HOST, DB_USERNAME, DB_PASSWORD, DB_DATABASE, REDIS_HOST, REDIS_PORT, REDIS_CACHE}) {
         this.config = {DB_HOST, DB_USERNAME, DB_PASSWORD, DB_DATABASE};
+        this.useRedisCache = REDIS_CACHE;
         this._dbClient = new DatabaseConnection({
             host: DB_HOST,
             user: DB_USERNAME,
@@ -74,6 +77,9 @@ export class Models {
      * @return {Promise<void>}
      */
     cacheTopRatedModels = async (models) => {
+        if (!this.useRedisCache) {
+            return;
+        }
         const hashMap = {};
         for (let model of models) {
             hashMap[model.id] = JSON.stringify(model);
@@ -151,6 +157,9 @@ export class Models {
         logger.debug('getTopRatedModels', {count: data.length})
         if (!data) {
             return [];
+        }
+        if (!this.useRedisCache) {
+            return data;
         }
         await this.cacheTopRatedModels(data);
         return data;

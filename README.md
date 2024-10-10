@@ -11,8 +11,10 @@ git clone https://github.com/santaklouse/onlygirls-test.git
 3. `./configure`
 4. place dump of_users table to `./configs/db-init`
 5. rename it to `0-of_users.table.dump.sql`
-6. run `./sail up`
-7. open http://localhost:8080/ or https://localhost:443/ in browser
+6. `./sail up -d`
+7. `./sail npm i && ./sail npm run build`
+8. `./sail restart`
+9. open http://localhost:8080/ or https://localhost:443/ in browser
 
 [//]: # (TODO: add dummy data for db in order to allow it deploy on PwD service)
 [//]: # (Try it on Play with Docker playground)
