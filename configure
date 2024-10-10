@@ -1,0 +1,10 @@
+#! /bin/bash
+
+cp ./.env.example ./.env
+cp ./app/.env.example ./app/.env
+
+sed -i~ '/^ENV=/s/=.*/="prod"/' .env
+sed -i~ '/^APP_ENV=/s/=.*/="prod"/' ./app/.env
+
+# install composer
+echo p | ./bin/deploy

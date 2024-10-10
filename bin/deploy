@@ -1,0 +1,27 @@
+#! /bin/bash
+
+read -p "Which environment use to deploy: (P)roduction (T)est (D)ev? (p/t/d): " -n 1 -r
+echo
+
+if [[ $REPLY =~ ^[^PpTtDd]$ ]]; then
+    echo "Incorrect environment";
+    exit 1;
+fi
+
+# tasks to run before composer install (svn up/git pull)
+
+APP_DIR="${PWD}/app"
+
+cd "${APP_DIR}"
+
+if [[ $REPLY =~ ^[Pp]$ ]]; then
+    composer install --prefer-dist --no-dev --classmap-authoritative -o --apcu-autoloader
+    composer dump-autoload --apcu -o
+elif [[ $REPLY =~ ^[Tt]$ ]]; then
+    composer install --prefer-dist --classmap-authoritative
+elif [[ $REPLY =~ ^[Dd]$ ]]; then
+    composer install
+fi
+
+php artisan key:generate
+# additional tasks after composer install (clear cache, migrations, etc.)

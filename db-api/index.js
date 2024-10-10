@@ -1,82 +1,76 @@
-const express = require('express');
-const mysql = require('mysql2');
+import process from 'node:process';
+import { GraceShutdown} from "./src/lib/utils.js";
+import {Logger} from "./src/lib/logger.js";
+import {httpServer} from "./src/lib/http.js";
+import {Models} from "./src/models.js";
 
-const app = express();
-const port = 3000;
+const logger = Logger;
 
-const {DB_HOST, DB_USERNAME, DB_PASSWORD, DB_DATABASE} = process.env;
+const {
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DATABASE,
+    REDIS_HOST,
+    REDIS_PORT,
+    PORT: port = 3000,
+    REDIS_CACHE
+} = process.env;
 
-const db = mysql.createConnection({
-    host: DB_HOST,
-    user: DB_USERNAME,
-    password: DB_PASSWORD,
-    database: DB_DATABASE
-});
+const config = {
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DATABASE,
+    REDIS_HOST,
+    REDIS_PORT,
+    port,
+    REDIS_CACHE
+};
 
-db.connect(err => {
-    if (err) throw err;
-    console.log('Connected to MySQL');
-});
+logger.info('Starting server...');
+logger.debug('config: ', {config});
 
-app.use(express.json());
+const modelsModule = new Models(config);
 
-// Endpoint для получения моделей
-app.get('/models', (req, res) => {
+httpServer.router
+    .get('/models', async (req, res) => {
+        const sessionId = req.query.session_id;
+        const modelId = req.query.include_model_id;
+        logger.debug({ sessionId, modelId });
+        try {
+            let models = await modelsModule.getRandom10TopRatedModels(sessionId, modelId);
+            console.log('model ids', models.map(m => m.id))
+            res.status(200).json(models);
+        } catch (error) {
+            logger.error(error);
+            res.status(500).json({
+                message: 'Error getting models.',
+                error: error.message
+            });
+        }
+    })
+    .put('/models/grade', async (req, res) => {
+        const { model_id, type, ip, session_id } = req.body;
+        try {
+            await modelsModule.saveSwipeAction({model_id, type, ip, session_id});
+        } catch (error) {
+            res.status(500).json({
+                message: 'Error saving user swipe.',
+                error: error.message
+            });
+            return;
+        }
+        res.status(200).json({
+            message: 'Swipe saved successfully',
+            error: null
+        });
+    })
+;
+const appServer = httpServer.start(port);
 
-    /*
-        SELECT *, likes.count as likes
-        FROM of_users
-        RIGHT JOIN (
-            SELECT
-                model_id as id,
-                count(*) as count
-            FROM model_swipes
-            WHERE `like` = TRUE
-            GROUP BY model_id
-            HAVING count > 1000
-        ) likes ON of_users.id = likes.id
-        ORDER BY RAND()
-        LIMIT 10
-     */
-
-    const sql = `
-        WITH UserLikes AS (
-            SELECT distinct models.id,
-               ROW_NUMBER() OVER (ORDER BY RAND()) AS rn
-            FROM of_users models
-            RIGHT JOIN (SELECT model_id as id, count(\`like\`) as count
-                        FROM model_swipes
-                        GROUP BY model_id
-                        HAVING count > 1000) likes ON models.id = likes.id
-        ),
-        TotalRand10 as (
-            SELECT id, rn FROM UserLikes
-            UNION ALL
-            SELECT id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn
-            FROM of_users
-            WHERE id NOT IN (SELECT id FROM UserLikes)
-            ORDER BY rn
-            LIMIT 10
-        )
-        SELECT * from of_users where id in (SELECT id from TotalRand10)
-    `;
-
-    db.query(sql, (err, result) => {
-        if (err) throw err;
-        res.json(result);
-    });
-});
-
-// Endpoint для записи свайпов
-app.post('/swipe', (req, res) => {
-    const { model_id, like, ip, date } = req.body;
-    const sql = 'INSERT INTO model_swipes (model_id, `like`, ip) VALUES (?, ?, ?)';
-    db.query(sql, [model_id, like, ip], (err, result) => {
-        if (err) throw err;
-        res.send('OK');
-    });
-});
-
-app.listen(port, () => {
-    console.log(`API running on http://localhost:${port}`);
-});
+GraceShutdown.create([
+    appServer,
+    modelsModule,
+    logger
+]);

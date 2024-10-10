@@ -35,3 +35,9 @@ public_html/hot
 
 storage/*.key
 /.vagrant
+
+/caddy
+frankenphp
+frankenphp-worker.php
+/data
+app/config/psysh/psysh_history

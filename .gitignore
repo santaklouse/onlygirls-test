@@ -1,4 +1,5 @@
 .env
+.env~
 .DS_Store
 
 configs/db-init/0-of_users.table.dump.sql
@@ -6,3 +7,6 @@ configs/db-init/0-of_users.table.dump.sql
 .idea/
 .editorconfig
 node_modules/
+mysqld.sock
+app/config/psysh/psysh_history
+app/config/caddy/autosave.json

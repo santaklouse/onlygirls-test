@@ -1,53 +1,23 @@
-ARG ALPINE_VERSION=3.20
+FROM dunglas/frankenphp:1.0-php8.3
 
-FROM node:20-alpine${ALPINE_VERSION} AS builder
-WORKDIR /build-stage
-COPY package*.json ./
+RUN install-php-extensions \
+    @composer \
+    pcntl \
+    gd \
+    intl \
+    bcmath \
+    intl \
+    pdo \
+    pdo_mysql \
+    mbstring \
+    opcache \
+    apcu \
+    exif
 
-RUN npm ci
-COPY . ./
-RUN npm run build
+# https://getcomposer.org/doc/03-cli.md#composer-allow-superuser
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
-FROM php:8.2-fpm-alpine
+RUN cp $PHP_INI_DIR/php.ini-development $PHP_INI_DIR/php.ini; \
+    sed -i 's/variables_order = "GPCS"/variables_order = "EGPCS"/' $PHP_INI_DIR/php.ini;
 
-RUN apk add --no-cache \
-    build-base \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    oniguruma-dev \
-    libxml2-dev \
-    curl \
-    zip \
-    unzip \
-    git \
-    bash  \
-    sqlite \
-    npm \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo pdo_mysql mbstring exif pcntl bcmath gd \
-    && npm install -g npm@latest
-
-COPY --from=builder /build-stage/node_modules /var/www/node_modules
-COPY --from=builder /build-stage/public/ /var/www/public
-
-ENV COMPOSER_HOME /composer
-ENV PATH ./vendor/bin:/composer/vendor/bin:$PATH
-ENV COMPOSER_ALLOW_SUPERUSER 1
-RUN curl -s https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin/ --filename=composer
-
-WORKDIR /var/www
-
-COPY . /var/www
-COPY --chown=www-data:www-data . /var/www
-
-#USER www-data
-
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
-
-RUN composer install
-
-CMD npm install && npm run dev --host & composer install ; php artisan serve --host=0.0.0.0 --port=8080
-
-EXPOSE 5173
-EXPOSE 8080
+ENTRYPOINT ["/bin/sh", "-c" , "composer install && php artisan octane:frankenphp --caddyfile=./Caddyfile --workers=8 --max-requests=500 --server=frankenphp --host=localhost --port=80 --admin-port=2019"]

@@ -1,6 +1,108 @@
 services:
+  app:
+    container_name: "${DOCKER_APP_HOSTNAME}"
+    extends:
+      file: ./app/docker-compose.yml
+      service: laravel.test
+    environment:
+      ENV: "${ENV}"
+      APP_PORT: "${APP_PORT}"
+      SUPERVISOR_PHP_COMMAND: "/usr/bin/php -d variables_order=EGPCS /var/www/html/artisan octane:frankenphp --caddyfile=./Caddyfile --host=localhost --port=443 --admin-port=2019 --https --watch"
+    env_file:
+      - path: ./app/.env
+        required: true
+      - path: ./.env
+        required: true
+    ports: !override []
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./app
+          target: /var/www
+          ignore:
+            - node_modules/
+            - ./app/node_modules/
+        - action: rebuild
+          path: ./app/package.json
+    depends_on:
+      - mysql
+      - db-api
+      - redis
+    networks:
+      - sail
+      - www
 
-  db:
+  db-api:
+    build:
+      context: ./db-api
+      dockerfile: Dockerfile
+    container_name: onlygirls-test-db-api
+    restart: unless-stopped
+    environment:
+      ENV: "${ENV}"
+    working_dir: /usr/src/app
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./db-api
+          target: /usr/src/app
+          ignore:
+            - node_modules/
+            - ./db-api/node_modules/
+        - action: rebuild
+          path: ./db-api/package.json
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - sail
+    env_file:
+      - path: ./.env
+        required: true
+    ports:
+      - "3000:3000"
+
+  nginx:
+    container_name: onlygirls-test-nginx
+    image: nginx:latest
+    volumes:
+      - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+      - ./configs/nginx/generate-cert.sh:/docker-entrypoint.d/generate-cert.sh
+    env_file:
+      - path: ./.env
+        required: true
+    environment:
+      APP_PORT: "${APP_PORT}"
+      VITE_PORT: "${VITE_PORT}"
+    ports:
+      - '${APP_PORT:-80}:80'
+      - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+      - '2019:2019'
+      - '443:443'
+      - '443:443/udp'
+    depends_on:
+      - app
+      - phpmyadmin
+    networks:
+      - www
+      - sail
+    entrypoint: ["/docker-entrypoint.d/generate-cert.sh"]
+
+  phpmyadmin:
+    container_name: onlygirls-test-phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
+    links:
+      - "mysql:db"
+    networks:
+      - sail
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+      PMA_ARBITRARY: 1
+    depends_on:
+      - mysql
+
+  mysql:
     image: ${DOCKER_DB_IMAGE}
     container_name: onlygirls-test-db
     restart: always
@@ -14,51 +116,62 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       LANG: C.UTF_8
+    ports:
+      - '${FORWARD_DB_PORT:-3306}:3306'
     networks:
-      - www
+      sail:
+      default:
+        aliases:
+          - mysql
+          - database
+          - db
     volumes:
       - db_data:/var/lib/mysql
       - ./configs/db-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - '-p${DB_ROOTPASSWORD}'
+      retries: 3
+      timeout: 5s
 
-  app:
-    build:
-      context: ./app/
-      dockerfile: Dockerfile
-    container_name: onlygirls-test-app
-    restart: unless-stopped
-    working_dir: /var/www
-    env_file:
-      - path: ./app/.env
-        required: true
-      - path: ./.env
-        required: false
-    ports:
-      - "5173:5173"
-      - "8080:8080"
-    depends_on:
-      - db
-      - db-api
-    networks:
-      - www
-
-  db-api:
-    build:
-      context: ./db-api
-      dockerfile: Dockerfile
-    container_name: onlygirls-test-db-api
-    restart: unless-stopped
-    depends_on:
-      - db
-    networks:
-      - www
-    env_file:
-      - path: ./.env
-        required: true
+  redis:
+    extends:
+      file: ./app/docker-compose.yml
+      service: redis
+    container_name: onlygirls-test-redis
     volumes:
-      - ./db-api:/usr/src/app
+      - 'sail-redis:/data'
+    networks:
+      - sail
+
+  cloudflared:
+    container_name: onlygirls-test-cloudflared
+    image: erisamoe/cloudflared:latest
+    restart: unless-stopped
+    command: 'tunnel run'
+    environment:
+      TUNNEL_TOKEN: "${CLOUDFLARED_TOKEN}"
+    networks:
+      - sail
+    depends_on:
+      - nginx
+      - app
+      - db-api
+      - phpmyadmin
 
 volumes:
   db_data:
+  sail-mysql:
+    driver: local
+  sail-redis:
+    driver: local
 
 networks:
+  sail:
   www:
+    driver: bridge
+    attachable: true
+
