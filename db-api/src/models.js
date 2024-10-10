@@ -29,7 +29,8 @@ const TopRatedModelsCacheKey = 'top_rated_models_hash_json';
 const SaveSwipeSql = 'INSERT INTO model_swipes (model_id, `like`, ip, session_id) VALUES (?, ?, ?, ?)';
 
 const ViewedModelsCacheKey = session_id => `viewed_models:${session_id}`;
-const ViewedModelsCacheTTL = 60 * 60 * 24 * 30; // 30 days
+const ViewedModelsCacheTTL = 60 * 60 * 24; // 1 day
+const TopRatedModelsCacheTTL = 60 * 60 * 12; // 12 hours
 
 export class Models {
 
@@ -79,7 +80,7 @@ export class Models {
         }
 
         await this.redisClient.hSet(TopRatedModelsCacheKey, hashMap);
-        await this.redisClient.expire(TopRatedModelsCacheKey, 1800);
+        await this.redisClient.expire(TopRatedModelsCacheKey, TopRatedModelsCacheTTL);
     }
 
     /**
