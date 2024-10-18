@@ -10,3 +10,5 @@ node_modules/
 mysqld.sock
 app/config/psysh/psysh_history
 app/config/caddy/autosave.json
+ssl/cert.pem
+ssl/key.pem

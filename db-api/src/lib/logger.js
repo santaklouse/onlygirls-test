@@ -80,6 +80,7 @@ export class AppLogger {
     warn = (...args) => this.logger.log.apply(this.logger, ['warn', ...args])
     error = (...args) => this.logger.log.apply(this.logger, ['error', ...args])
     http = (...args) => this.logger.log.apply(this.logger, ['http', ...args])
+    profile = (...args) => this.logger.profile.call(this.logger, ...args)
 
     static getServiceLogger = serviceName => {
         if (!winston.loggers.has(serviceName)) {

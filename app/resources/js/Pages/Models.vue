@@ -5,27 +5,43 @@
             <link v-for="(item, index) in queue"
                   rel="preload"
                   fetchpriority="high"
-                  :href="item.header_thumbs.w480"
+                  :href="imgUrl('100', item.header_thumbs.w480)"
                   as="image"
-                  type="image/jpeg"
-                  media="(max-width: 759px)"
+                  type="image/webp"
             />
+            <link v-for="(item, index) in queue"
+                  v-if="item?.avatar_thumbs?.c144"
+                  rel="preload"
+                  fetchpriority="high"
+                  :href="imgUrl(144, item.avatar_thumbs?.c144)"
+                  as="image"
+                  type="image/webp"
+            />
+<!--            <link v-for="(item, index) in queue"-->
+<!--                  rel="preload"-->
+<!--                  fetchpriority="high"-->
+<!--                  :href="imgUrl('480', item.header_thumbs.w480)"-->
+<!--                  as="image"-->
+<!--                  type="image/webp"-->
+<!--                  media="(max-width: 759px)"-->
+<!--            />-->
+<!--            <link v-for="(item, index) in queue"-->
+<!--                  rel="preload"-->
+<!--                  fetchpriority="high"-->
+<!--                  :href="imgUrl('760', item.header_thumbs.w760)"-->
+<!--                  as="image"-->
+<!--                  type="image/webp"-->
+<!--                  media="(min-width: 760px)"-->
+<!--            />-->
             <link v-for="(item, index) in queue"
                   rel="preload"
                   fetchpriority="high"
-                  :href="item.header_thumbs.w760"
+                  :href="imgUrl(item.header_size.width, item.header)"
                   as="image"
-                  type="image/jpeg"
-                  media="(min-width: 760px)"
-            />
-            <link v-for="(item, index) in queue"
-                  rel="preload"
-                  fetchpriority="high"
-                  :href="item.header"
-                  as="image"
-                  type="image/jpeg"
+                  type="image/webp"
                   :media="`(min-width: 761px) and (max-width: ${item.header_size.width}px)`"
             />
+
         </template>
         <template #default>
             <v-sheet class="profile-card-wrapper mt-5 position-static" color="transparent" rounded="lg">
@@ -108,15 +124,15 @@
 import { computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-const page = usePage();
-const user = computed(() => page.props.modelId)
-const pageModelId = computed(() => page.props.modelId)
+const user = computed(() => usePage().props.modelId)
 
 import Tinder from "vue-tinder";
 import TinderCard from "@components/TinderCard.vue";
 import NoMoreModels from "@components/NoMoreModels.vue";
 import AskRedirectToChatDialog from "@components/AskRedirectToChatDialog.vue";
 import MainLayout from "@layouts/MainLayout.vue";
+import imgUrls from '@components/mixins/img.js'
+
 export default {
     name: 'Models',
     title: 'Models',
@@ -127,6 +143,7 @@ export default {
         AskRedirectToChatDialog,
         NoMoreModels
     },
+    mixins: [imgUrls],
     props: {
         id: String,
         models: {
@@ -136,56 +153,40 @@ export default {
         modelId: String,
         activeItem: Object
     },
-    mounted() {
-        console.log(`mounted; models`, this.models.length, this.models)
-    },
     created() {
         axios.defaults.headers.common['X-CSRF-Token'] = usePage().props.token;
-        console.log('this.$root', this.$root)
-        console.log('this.$inertia', this.$inertia)
-        console.log('router',router)
-        console.log('route', route)
-        console.log('this.route', this.route)
-        console.log('this.$route', this.$route)
-        console.log('this.routes', this.routes)
-        console.log('this.$routes', this.$routes)
-        console.log(`created; models`, this.models.length, this.models)
+
         this.$watch(
             () => this.$route.params.modelId,
             (newId, oldId) => {
                 console.log('modelId changed ($watch): ', newId, oldId)
             }
-        )
+        );
 
         const modelId = this.$route.params.modelId || this.modelId;
-        console.log('created', modelId);
-
-        console.log('this.$route', this.$route, this.$route.params, this.$route.params.id)
-        console.log('this.$router', this.$router, this.$router.currentRoute, this.$router.currentRoute.value.params, this.$router.currentRoute.value.params.id)
 
         if (modelId) {
             const model = this.models.find(m =>
                 parseInt(m.id) === parseInt(modelId)
             );
 
-            console.log('model', model, modelId);
-
-            console.log('this.models', this.models);
             if (model) {
+                this.currentModel = model;
                 this.models.splice(this.models.indexOf(model), 1);
                 this.models.unshift(model);
-                console.log('this.models', this.models);
-                this.fillQueue();
             }
-            console.log('this.queue', this.queue);
-            this.updateUrlHash();
-        } else {
-            this.fillQueue();
-            this.updateUrlHash();
         }
+        this.fillQueue();
+        this.updateUrlHash();
+
+        this.getViewedModels().then(async viewed => {
+            await this.replaceViewedModels(viewed);
+        });
     },
     data: () => ({
+        route: null,
         queue: [],
+        currentModel: null,
         openModal: false,
         redirectToGirl: null,
         offset: 0,
@@ -194,12 +195,8 @@ export default {
     watch: {
         queue: 'updateUrlHash'
     },
-    computed: {
-
-    },
     methods: {
         updateUrl(model) {
-            console.log('updateUrl', model);
             this.$router.replace({
                 name: 'models',
                 params: { modelId: model.id },
@@ -207,18 +204,62 @@ export default {
         },
         updateUrlHash() {
             if (this.queue.length > 0) {
-                const currentModel = this.queue[0];
-                console.log('updateUrlHash', currentModel);
-                this.updateUrl(currentModel)
+                if (this.queue.at(0)) {
+                    this.currentModel = this.queue.at(0);
+                    this.updateUrl(this.currentModel)
+                }
             }
         },
-        _swipe: (modelId, type) =>
-            axios.put(`/api/model/grade`, {
-                _token: page.props.csrf_token,
+        async getViewedModels() {
+            const { data: {viewed: viewed} } = await axios.get(this.getRouteUrl('api.models.viewed'));
+            return viewed;
+        },
+        async replaceViewedModels(viewedModels) {
+            if (!viewedModels.length) {
+                return;
+            }
+            const modelsToReplace = [];
+            for (const model in this.models) {
+                if (viewedModels.includes(model.id)) {
+                    modelsToReplace.push(model.id);
+                }
+            }
+
+            if (!modelsToReplace.length) {
+                return;
+            }
+            const {data: models} = await axios.get(this.getRouteUrl('api.models.replace-viewed'), {
+                params: {viewed: modelsToReplace.join(';')}
+            });
+
+            if (!models.length) {
+                return;
+            }
+            models.forEach(modelId => {
+                if (this.currentModel?.id === modelId) {
+                    return;
+                }
+                const modelForReplace = this.models.find(m =>
+                    parseInt(m.id) === parseInt(modelId)
+                );
+
+                const replacementModel = models.pop();
+
+                if (modelForReplace && replacementModel) {
+                    this.models.splice(this.models.indexOf(modelForReplace), 1, replacementModel);
+                    this.queue.splice(this.queue.indexOf(modelForReplace), 1, replacementModel);
+                }
+            });
+        },
+        getRouteUrl: (route) => {
+            return window.route(route);
+        },
+        async _swipe(modelId, type) {
+            return await axios.put(this.getRouteUrl('api.models.grade'), {
                 model_id: modelId,
                 type
             })
-        ,
+        },
         redirectToProfile({username}) {
             window.location.href = `https://onlyfans.com/${username}`;
         },
@@ -234,9 +275,7 @@ export default {
             this.models.forEach(model => this.queue.push(model));
         },
         getModels() {
-            router.get('/models', {
-                _token: page.props.csrf_token
-            }, {
+            router.get('/models', {}, {
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: (response) => {
@@ -244,19 +283,17 @@ export default {
                 }
             });
         },
-        onSubmit({ item, type }) {
-            this._swipe(item.id, type === 'like' ? type : 'dislike')
+        async onSubmit({ item, type }) {
+            await this._swipe(item.id, type === 'like' ? type : 'dislike')
             if (type === 'like') {
                 this.openDialog(item);
             }
-            console.log('onSubmit', item)
             if (this.queue.length < 2) {
                 this.getModels();
             }
             this.history.push(item);
         },
         async decide(choice) {
-            console.log('decide', choice)
             if (choice === "rewind") {
                 if (this.history.length) {
                     const prevItem = this.history.pop();
