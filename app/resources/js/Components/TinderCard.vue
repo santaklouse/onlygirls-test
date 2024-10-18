@@ -3,7 +3,7 @@
         <v-img
             class="img-wrapper rounded rounded-lg align-end"
             :aspect-ratio="9/16"
-            :src="item.header"
+            :src="imgUrl(item.header_size.width, item.header)"
             :alt="`${item.name}'s profile header image`"
             cover
             min-height="350px"
@@ -12,11 +12,12 @@
             gradient="to bottom, rgba(0,0,0,.1), rgba(0,0,0,.5)"
             :loadstart="loading=true"
             @load="loading=false"
+            :lazy-src="imgUrl('100', item.header_thumbs.w480)"
         >
             <template #sources>
-                <source media="(max-width: 759px)" :srcset="item.header_thumbs.w480">
-                <source media="(min-width: 760px)" :srcset="item.header_thumbs.w760">
-                <source :media="`(min-width: ${item.header_size.width}px)`" :srcset="item.header">
+                <source media="(max-width: 759px)" :srcset="imgUrl('480', item.header_thumbs.w480)">
+                <source media="(min-width: 760px)" :srcset="imgUrl('760', item.header_thumbs.w760)">
+                <source :media="`(min-width: ${item.header_size.width}px)`" :srcset="imgUrl(item.header_size.width, item.header)">
             </template>
             <template #placeholder>
                 <div class="d-flex align-center justify-center fill-height">
@@ -29,7 +30,7 @@
             <template #error>
                 <v-img
                     :aspect-ratio="9/16"
-                    :src="item.avatar_thumbs?.c144"
+                    :src="imgUrl(144, item.avatar_thumbs?.c144)"
                     :alt="`${item.name}'s profile avatar image`"
                     cover
                 ></v-img>
@@ -38,11 +39,12 @@
                 <v-card-actions class="flex-column gap-0">
                     <v-list-item class="w-100">
                         <template v-slot:prepend>
-                            <v-avatar :image="item.avatar_thumbs?.c144" size="64">
+                            <v-avatar :image="imgUrl(64, item.avatar_thumbs?.c144)" size="64">
                                 <v-img
                                     v-if="item.avatar_thumbs?.c144"
                                     alt="Avatar"
-                                    :src="item.avatar_thumbs?.c144"
+                                    :src="imgUrl(64, item.avatar_thumbs?.c144)"
+                                    :lazy-src="imgUrl(10, item.avatar_thumbs?.c144)"
                                 >
                                     <template #error>
                                         <v-icon icon="mdi-account-circle" size="64"></v-icon>
@@ -89,10 +91,11 @@
 
 <script>
 import {useGoTo} from "vuetify";
+import imgUrls from "@components/mixins/img.js";
 
 export default {
-
     name: 'TinderCard',
+    mixins: [imgUrls],
     props: {
         item: Object,
     },

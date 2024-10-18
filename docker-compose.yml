@@ -147,6 +147,20 @@ services:
     networks:
       - sail
 
+  thumbor:
+    container_name: onlygirls-test-thumbor
+    image: ghcr.io/minimalcompact/thumbor
+    environment:
+      - THUMBOR_NUM_PROCESSES=4
+      - CORS_ALLOW_ORIGIN=*
+      - AUTO_WEBP=True
+      - RESULT_STORAGE=thumbor.result_storages.no_storage
+      - RESULT_STORAGE_STORES_UNSAFE=True
+      - STORAGE=thumbor.storages.file_storage
+    restart: always
+    networks:
+      - sail
+
   cloudflared:
     container_name: onlygirls-test-cloudflared
     image: erisamoe/cloudflared:latest

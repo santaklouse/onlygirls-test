@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Inertia\Controller;
@@ -57,4 +58,59 @@ class ModelController extends Controller
             'session_id' => $sessionId
         ]);
     }
+
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getViewed(Request $request): JsonResponse
+    {
+        $sessionId = $request->session()->getId();
+
+        $response = Http::get("{$this->apiUrl}/models/get-viewed", [
+            'session_id' => $sessionId
+        ]);
+
+        return response()->json([
+            'viewed' => $response->json('models')
+        ], 200);
+    }
+
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function replaceViewed(Request $request): JsonResponse
+    {
+        $sessionId = $request->session()->getId();
+        $modelIds = $request->input('viewed');
+
+        if (!$modelIds) {
+            return response()->json([
+                'message' => 'missing modelIds'
+            ], 500);
+        }
+
+        $modelIds = explode(';', $modelIds);
+
+        $amount = count($modelIds);
+        if (empty($amount)) {
+            return response()->json([
+                'models' => []
+            ]);
+        }
+
+        if ($amount > 10) {
+            return response()->json([
+                'message' => 'Server error'
+            ], 500);
+        }
+
+        $response = Http::get("{$this->apiUrl}/models/get-random/{$amount}", [
+            'session_id' => $sessionId
+        ]);
+
+        return response()->json($response->json());
+    }
+
 }

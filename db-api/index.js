@@ -34,13 +34,44 @@ logger.debug('config: ', {config});
 const modelsModule = new Models(config);
 
 httpServer.router
+    .get('/models/get-random/:amount', async (req, res) => {
+        res.send(`user ${req.params.amount}`)
+
+        const sessionId = req.query.session_id;
+        const amount = req.params.amount;
+        if (!amount) {
+            return res.status(200).json([]);
+        }
+        try {
+            let models = await modelsModule.getRandomNTopRatedModels(sessionId, amount);
+            res.status(200).json({models});
+        } catch (error) {
+            logger.error(error);
+            res.status(500).json({
+                message: 'Error getting models.',
+                error: error.message
+            });
+        }
+    })
+    .get('/models/get-viewed', async (req, res) => {
+        const sessionId = req.query.session_id;
+        try {
+            let models = await modelsModule.getViewedUserModels(sessionId, true);
+            res.status(200).json({models});
+        } catch (error) {
+            logger.error(error);
+            res.status(500).json({
+                message: 'Error getting models.',
+                error: error.message
+            });
+        }
+    })
     .get('/models', async (req, res) => {
         const sessionId = req.query.session_id;
         const modelId = req.query.include_model_id;
         logger.debug({ sessionId, modelId });
         try {
             let models = await modelsModule.getRandom10TopRatedModels(sessionId, modelId);
-            console.log('model ids', models.map(m => m.id))
             res.status(200).json(models);
         } catch (error) {
             logger.error(error);
